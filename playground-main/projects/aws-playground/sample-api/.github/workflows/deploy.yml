@@ -1,0 +1,118 @@
+name: Deploy on Merge
+# Triggered on every push to main (i.e. after a PR is merged).
+# Builds + pushes the versioned image, creates a GitHub pre-release,
+# then auto-promotes to staging.
+
+on:
+  push:
+    branches: [main]
+
+env:
+  AWS_DEFAULT_REGION:  us-east-1
+  DOTNET_VERSION:      "8.0.x"
+  DEPLOYMENT_INFO_FILE: deployment_info.txt
+  # The environment that receives automatic deploys on merge to main.
+  # Prod requires a manual promote (see promote.yml).
+  AUTO_DEPLOY_ENV: staging
+
+jobs:
+  build:
+    name: Build and Push to ECR
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.extract-version.outputs.version }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Build application
+        run: make build
+        working-directory: sample-api
+
+      - name: Build Docker image
+        run: make docker-build | tee build_output.log
+        working-directory: sample-api
+
+      - name: Extract version from build output
+        id: extract-version
+        run: |
+          VERSION=$(grep "BUILD_VERSION=" sample-api/build_output.log | cut -d "=" -f2)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "### Version: $VERSION" >> $GITHUB_STEP_SUMMARY
+
+      - name: Authenticate to AWS (ECR account)
+        uses: ./.github/actions/aws-auth-with-egress-audit
+        with:
+          aws_access_key_id:     ${{ secrets.SECURITY_AWS_ACCESS_KEY_ID }}
+          aws_secret_access_key: ${{ secrets.SECURITY_AWS_SECRET_ACCESS_KEY }}
+          aws_region:            ${{ env.AWS_DEFAULT_REGION }}
+          role_to_assume:        ${{ vars.ECR_DEPLOYER_ROLE }}
+          dd_api_key:            ${{ secrets.DATADOG_API_KEY }}
+          extra_tags:            "env:ci,service:sample-api"
+
+      - name: Log in to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Push versioned image to ECR
+        env:
+          AWS_ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY:   ${{ vars.ECR_REPOSITORY }}
+          AWS_REGION:       ${{ env.AWS_DEFAULT_REGION }}
+        run: make docker-push VERSION_TO_PUSH=${{ steps.extract-version.outputs.version }}
+        working-directory: sample-api
+
+  create_release:
+    name: Create GitHub Pre-release
+    needs: [build]
+    runs-on: ubuntu-latest
+    outputs:
+      tag:              ${{ steps.create-artifact.outputs.tag }}
+      environment_name: ${{ env.AUTO_DEPLOY_ENV }}
+      aws_region:       ${{ env.AWS_DEFAULT_REGION }}
+
+    steps:
+      - name: Build release artifact info
+        id: create-artifact
+        run: |
+          TAG=${{ needs.build.outputs.version }}
+          echo "Commit SHA: ${{ github.sha }}"  >> ${{ env.DEPLOYMENT_INFO_FILE }}
+          echo "Timestamp:  $(date)"            >> ${{ env.DEPLOYMENT_INFO_FILE }}
+          echo "Tag:        $TAG"               >> ${{ env.DEPLOYMENT_INFO_FILE }}
+          echo "tag=$TAG"                       >> $GITHUB_OUTPUT
+
+      - name: Create GitHub pre-release
+        id: create-release
+        uses: softprops/action-gh-release@v2
+        with:
+          files:              ${{ env.DEPLOYMENT_INFO_FILE }}
+          tag_name:           ${{ steps.create-artifact.outputs.tag }}
+          name:               ${{ steps.create-artifact.outputs.tag }}
+          prerelease:         true
+          generate_release_notes: true
+          target_commitish:   ${{ github.ref }}
+
+      - name: Summary
+        run: |
+          echo "## Release" >> $GITHUB_STEP_SUMMARY
+          echo "[${{ steps.create-artifact.outputs.tag }}](${{ steps.create-release.outputs.url }})" >> $GITHUB_STEP_SUMMARY
+
+  promote:
+    name: Auto-promote to staging
+    needs: [create_release]
+    uses: ./.github/workflows/template_deploy.yml
+    with:
+      environment_name: ${{ needs.create_release.outputs.environment_name }}
+      aws_region:       ${{ needs.create_release.outputs.aws_region }}
+      tag:              ${{ needs.create_release.outputs.tag }}
+    secrets:
+      aws_access_key_id:     ${{ secrets.SECURITY_AWS_ACCESS_KEY_ID }}
+      aws_secret_access_key: ${{ secrets.SECURITY_AWS_SECRET_ACCESS_KEY }}

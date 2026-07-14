@@ -1,0 +1,39 @@
+name: Promote
+# Manually promote any versioned tag to staging or prod.
+# Use this to re-deploy a previous version, or to push staging → prod
+# after manual validation.
+#
+# How to use:
+#   1. Go to Actions → Promote → Run workflow
+#   2. Enter the version tag (e.g. 2024.07.12.1530-abc1234)
+#   3. Choose the target environment (staging or prod)
+#
+# Prod promotes require approval from the GitHub Environment's required reviewers.
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Versioned image tag to promote (e.g. 2024.07.12.1530-abc1234)"
+        required: true
+        type: string
+      environment:
+        description: "Target environment"
+        required: true
+        default: staging
+        type: choice
+        options:
+          - staging
+          - prod
+
+jobs:
+  promote:
+    name: Promote ${{ inputs.tag }} → ${{ inputs.environment }}
+    uses: ./.github/workflows/template_deploy.yml
+    with:
+      environment_name: ${{ inputs.environment }}
+      aws_region:       us-east-1
+      tag:              ${{ inputs.tag }}
+    secrets:
+      aws_access_key_id:     ${{ secrets.SECURITY_AWS_ACCESS_KEY_ID }}
+      aws_secret_access_key: ${{ secrets.SECURITY_AWS_SECRET_ACCESS_KEY }}

@@ -1,0 +1,128 @@
+name: "[Template] - Deploy ECS Service"
+# Reusable workflow called by deploy.yml (auto) and promote.yml (manual).
+# For each environment it:
+#   1. Re-tags the versioned ECR image with the environment tag (staging / latest)
+#   2. Forces a new ECS deployment so the service picks up the new image
+#   3. Marks the GitHub release as a full release when promoting to prod
+
+on:
+  workflow_call:
+    inputs:
+      environment_name:
+        required: true
+        type: string
+        description: "GitHub environment name — must match a configured environment (staging | prod)"
+      aws_region:
+        required: true
+        type: string
+      tag:
+        required: true
+        type: string
+        description: "Versioned image tag to promote (e.g. 2024.07.12.1530-abc1234)"
+    secrets:
+      aws_access_key_id:
+        required: true
+      aws_secret_access_key:
+        required: true
+
+jobs:
+  update-ecr-tag:
+    name: Re-tag image in ECR
+    runs-on: ubuntu-latest
+    # GitHub Environments gate this job — requires approval if the environment
+    # is configured with a required reviewer in GitHub repo settings.
+    environment:
+      name: ${{ inputs.environment_name }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Authenticate to the ECR account (where the image lives).
+      # Uses the shared action so runner egress IP is audited via Datadog.
+      - name: Authenticate to AWS (ECR account)
+        uses: ./.github/actions/aws-auth-with-egress-audit
+        with:
+          aws_access_key_id:     ${{ secrets.aws_access_key_id }}
+          aws_secret_access_key: ${{ secrets.aws_secret_access_key }}
+          aws_region:            ${{ inputs.aws_region }}
+          role_to_assume:        ${{ vars.ECR_DEPLOYER_ROLE }}
+          dd_api_key:            ${{ secrets.DATADOG_API_KEY }}
+          extra_tags:            "env:${{ inputs.environment_name }},service:sample-api"
+
+      - name: Log in to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      # For staging: pull the versioned image and push it as ':staging'.
+      # ECS in the staging account watches for this tag.
+      - name: Tag image as 'staging'
+        if: ${{ inputs.environment_name == 'staging' }}
+        env:
+          AWS_ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY:   ${{ vars.ECR_REPOSITORY }}
+          AWS_REGION:       ${{ inputs.aws_region }}
+        run: make docker-tag-staging-ecr VERSION_TO_TAG=${{ inputs.tag }}
+        working-directory: sample-api
+
+      # For prod: pull the versioned image and push it as ':latest'.
+      # ECS in the prod account watches for this tag.
+      - name: Tag image as 'latest'
+        if: ${{ inputs.environment_name == 'prod' }}
+        env:
+          AWS_ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY:   ${{ vars.ECR_REPOSITORY }}
+          AWS_REGION:       ${{ inputs.aws_region }}
+        run: make docker-tag-latest-ecr VERSION_TO_TAG=${{ inputs.tag }}
+        working-directory: sample-api
+
+  deploy:
+    name: Force new ECS deployment
+    needs: [update-ecr-tag]
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ inputs.environment_name }}
+
+    steps:
+      # Authenticate to the TARGET environment's AWS account (staging or prod),
+      # not the ECR account. DEPLOYER_ROLE is set per GitHub Environment.
+      - name: Authenticate to AWS (target environment)
+        uses: ./.github/actions/aws-auth-with-egress-audit
+        with:
+          aws_access_key_id:     ${{ secrets.aws_access_key_id }}
+          aws_secret_access_key: ${{ secrets.aws_secret_access_key }}
+          aws_region:            ${{ inputs.aws_region }}
+          role_to_assume:        ${{ vars.DEPLOYER_ROLE }}
+          dd_api_key:            ${{ secrets.DATADOG_API_KEY }}
+          extra_tags:            "env:${{ inputs.environment_name }},service:sample-api"
+
+      # ecs-deploy polls until the new task set is healthy (timeout 360s).
+      # ECS_CLUSTER_NAME and ECS_SERVICE_NAME are set per GitHub Environment.
+      - name: Deploy to ECS
+        uses: brunocascio/ecs-deploy@v2.2.0
+        with:
+          args: deploy --region ${{ inputs.aws_region }} --timeout 360 ${{ vars.ECS_CLUSTER_NAME }} ${{ vars.ECS_SERVICE_NAME }}
+
+      - name: Summary
+        run: |
+          echo "## Deployed" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** ${{ inputs.environment_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Tag:** ${{ inputs.tag }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Service URL:** ${{ vars.ECS_SERVICE_URL }}" >> $GITHUB_STEP_SUMMARY
+
+  mark-release:
+    name: Mark GitHub release as stable
+    needs: [deploy]
+    # Only runs when promoting to prod — upgrades the pre-release to a full release
+    if: ${{ inputs.environment_name == 'prod' }}
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ inputs.environment_name }}
+
+    steps:
+      - name: Mark release as stable
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name:  ${{ inputs.tag }}
+          prerelease: false

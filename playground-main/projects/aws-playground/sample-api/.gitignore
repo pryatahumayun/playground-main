@@ -1,0 +1,24 @@
+# .NET build output
+bin/
+obj/
+out/
+*.user
+*.suo
+.vs/
+
+# Logs
+*.log
+build_output.log
+
+# Docker
+.dockerignore
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Terraform cache (if infra lives in same repo)
+**/.terragrunt-cache/
+**/.terraform/
+*.tfstate
+*.tfstate.backup

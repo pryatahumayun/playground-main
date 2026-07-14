@@ -1,0 +1,171 @@
+name: "AWS auth (configure-aws-credentials) with egress IP audit"
+description: "Best-effort: capture runner public egress IP, write summary, ship to Datadog Logs, then run aws-actions/configure-aws-credentials@v4."
+
+inputs:
+  aws_access_key_id:
+    required: true
+    description: "AWS access key id (source credentials)"
+  aws_secret_access_key:
+    required: true
+    description: "AWS secret access key (source credentials)"
+  aws_region:
+    required: true
+    description: "AWS region"
+    default: "us-west-2"
+
+  role_to_assume:
+    required: false
+    default: ""
+    description: "Role ARN to assume (optional). If empty, uses source creds directly."
+  role_duration_seconds:
+    required: false
+    default: "900"
+  role_session_name:
+    required: false
+    default: "${{ github.event.repository.name }}-cicd"
+  role_skip_session_tagging:
+    required: false
+    default: "true"
+
+  dd_api_key:
+    required: true
+    description: "Datadog API key (logs intake)"
+  dd_site:
+    required: false
+    default: "us5.datadoghq.com"
+    description: "Datadog site domain (e.g. datadoghq.com, datadoghq.eu, us3.datadoghq.com)"
+  dd_service:
+    required: false
+    default: "github-actions"
+  dd_source:
+    required: false
+    default: "github"
+  extra_tags:
+    required: false
+    default: ""
+    description: "Comma-separated tags, e.g. env:ci,team:platform"
+  timeout_seconds:
+    required: false
+    default: "5"
+
+  show_summary:
+    required: false
+    default: "false"
+    description: "Whether to write the AWS auth audit block to the GitHub job summary"
+
+outputs:
+  egress_ip:
+    description: "Detected runner public egress IP (or 'unknown')"
+    value: ${{ steps.ip.outputs.egress_ip }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Determine public egress IP
+      id: ip
+      shell: bash
+      run: |
+        set +e
+        IP="$(curl -fsS --max-time ${{ inputs.timeout_seconds }} https://api.ipify.org)"
+        if [[ -z "$IP" ]]; then
+          IP="$(curl -fsS --max-time ${{ inputs.timeout_seconds }} https://ifconfig.me/ip)"
+        fi
+        if [[ -z "$IP" ]]; then
+          IP="unknown"
+        fi
+        echo "egress_ip=$IP" >> "$GITHUB_OUTPUT"
+
+    - name: Write audit summary
+      if: ${{ always() && inputs.show_summary == 'true' }}
+      shell: bash
+      run: |
+        echo "## 🔐 AWS Auth Audit" >> "$GITHUB_STEP_SUMMARY"
+        echo "" >> "$GITHUB_STEP_SUMMARY"
+        echo "**Runner egress IP:** \`${{ steps.ip.outputs.egress_ip }}\`" >> "$GITHUB_STEP_SUMMARY"
+        if [[ -n "${{ inputs.role_to_assume }}" ]]; then
+          echo "**Role to assume:** \`${{ inputs.role_to_assume }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "**Role Session Name:** \`${{ inputs.role_session_name }}\`" >> "$GITHUB_STEP_SUMMARY"
+        else
+          echo "**Role to assume:** \`(none - using source credentials)\`" >> "$GITHUB_STEP_SUMMARY"
+        fi
+        echo "" >> "$GITHUB_STEP_SUMMARY"
+
+    - name: Ship audit log to Datadog (best-effort)
+      if: ${{ always() }}
+      shell: bash
+      env:
+        DD_API_KEY: ${{ inputs.dd_api_key }}
+        DD_SITE: ${{ inputs.dd_site }}
+        DD_SERVICE: ${{ inputs.dd_service }}
+        DD_SOURCE: ${{ inputs.dd_source }}
+        EXTRA_TAGS: ${{ inputs.extra_tags }}
+        IP: ${{ steps.ip.outputs.egress_ip }}
+        ROLE_TO_ASSUME: ${{ inputs.role_to_assume }}
+        ROLE_SESSION_NAME: ${{ inputs.role_session_name }}
+        AWS_REGION: ${{ inputs.aws_region }}
+      run: |
+        set +e
+
+        INTAKE_HOST="http-intake.logs.${DD_SITE}"
+
+        TAGS="repo:${GITHUB_REPOSITORY},sha:${GITHUB_SHA},run_id:${GITHUB_RUN_ID},run_attempt:${GITHUB_RUN_ATTEMPT},workflow:${GITHUB_WORKFLOW},job:${GITHUB_JOB},ip:${IP},aws_region:${AWS_REGION}"
+        if [[ -n "${ROLE_TO_ASSUME}" ]]; then
+          TAGS="${TAGS},aws_role:${ROLE_TO_ASSUME}"
+        fi
+        if [[ -n "${EXTRA_TAGS}" ]]; then
+          TAGS="${TAGS},${EXTRA_TAGS}"
+        fi
+
+        payload="$(jq -nc \
+          --arg ddsource "$DD_SOURCE" \
+          --arg service "$DD_SERVICE" \
+          --arg ddtags "$TAGS" \
+          --arg repo "$GITHUB_REPOSITORY" \
+          --arg sha "$GITHUB_SHA" \
+          --arg run_id "$GITHUB_RUN_ID" \
+          --arg run_attempt "$GITHUB_RUN_ATTEMPT" \
+          --arg workflow "$GITHUB_WORKFLOW" \
+          --arg job "$GITHUB_JOB" \
+          --arg ip "$IP" \
+          --arg region "$AWS_REGION" \
+          --arg role "$ROLE_TO_ASSUME" \
+          --arg role_session_name "$ROLE_SESSION_NAME" \
+          '[{
+            ddsource: $ddsource,
+            service: $service,
+            ddtags: $ddtags,
+            message: "aws auth from github actions runner",
+            github: {
+              repository: $repo,
+              sha: $sha,
+              run_id: $run_id,
+              run_attempt: $run_attempt,
+              workflow: $workflow,
+              job: $job
+            },
+            network: { egress_ip: $ip },
+            aws: { region: $region, role_to_assume: $role, role_session_name: $role_session_name }
+          }]'
+        )"
+
+        curl -fsS --max-time "${{ inputs.timeout_seconds }}" -X POST "https://${INTAKE_HOST}/api/v2/logs" \
+          -H "Content-Type: application/json" \
+          -H "DD-API-KEY: ${DD_API_KEY}" \
+          -d "$payload" >/dev/null 2>&1
+
+        if [[ $? -eq 0 && "${{ inputs.show_summary }}" == "true" ]]; then
+          echo "Datadog: shipped AWS auth audit ✅" >> "$GITHUB_STEP_SUMMARY"
+        elif [[ "${{ inputs.show_summary }}" == "true" ]]; then
+          echo "Datadog: failed to ship AWS auth audit (non-fatal) ⚠️" >> "$GITHUB_STEP_SUMMARY"
+        fi
+
+    - name: Configure AWS credentials (assume role if provided)
+      uses: aws-actions/configure-aws-credentials@v6
+      with:
+        aws-access-key-id: ${{ inputs.aws_access_key_id }}
+        aws-secret-access-key: ${{ inputs.aws_secret_access_key }}
+        aws-region: ${{ inputs.aws_region }}
+        role-to-assume: ${{ inputs.role_to_assume }}
+        role-duration-seconds: ${{ inputs.role_duration_seconds }}
+        role-session-name: ${{ inputs.role_session_name }}
+        role-skip-session-tagging: ${{ inputs.role_skip_session_tagging }}

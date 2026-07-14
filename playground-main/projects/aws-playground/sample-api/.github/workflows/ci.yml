@@ -1,0 +1,71 @@
+name: "CI - Build / Test / ECR"
+# Runs on every pull request.
+# Builds the Docker image, runs tests, and pushes the versioned image to ECR
+# so the image exists and is ready to be promoted on merge.
+
+on: [pull_request]
+
+env:
+  AWS_DEFAULT_REGION: us-east-1
+  DOTNET_VERSION: "8.0.x"
+
+jobs:
+  build:
+    name: Build, Test and Push to ECR
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.extract-version.outputs.version }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Build application
+        run: make build
+        working-directory: sample-api
+
+      - name: Run tests
+        run: make test
+        working-directory: sample-api
+
+      - name: Build Docker image
+        # Captures "BUILD_VERSION=..." from make output so we can tag the ECR image
+        run: make docker-build | tee build_output.log
+        working-directory: sample-api
+
+      - name: Extract version from build output
+        id: extract-version
+        run: |
+          VERSION=$(grep "BUILD_VERSION=" sample-api/build_output.log | cut -d "=" -f2)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "### Version: $VERSION" >> $GITHUB_STEP_SUMMARY
+
+      # Captures runner egress IP and ships an audit log to Datadog before configuring AWS credentials.
+      - name: Authenticate to AWS (ECR account)
+        uses: ./.github/actions/aws-auth-with-egress-audit
+        with:
+          aws_access_key_id:     ${{ secrets.SECURITY_AWS_ACCESS_KEY_ID }}
+          aws_secret_access_key: ${{ secrets.SECURITY_AWS_SECRET_ACCESS_KEY }}
+          aws_region:            ${{ env.AWS_DEFAULT_REGION }}
+          role_to_assume:        ${{ vars.ECR_DEPLOYER_ROLE }}
+          dd_api_key:            ${{ secrets.DATADOG_API_KEY }}
+          extra_tags:            "env:ci,service:sample-api"
+
+      - name: Log in to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Push versioned image to ECR
+        env:
+          AWS_ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY:   ${{ vars.ECR_REPOSITORY }}   # e.g. sample-api
+          AWS_REGION:       ${{ env.AWS_DEFAULT_REGION }}
+        run: make docker-push VERSION_TO_PUSH=${{ steps.extract-version.outputs.version }}
+        working-directory: sample-api
