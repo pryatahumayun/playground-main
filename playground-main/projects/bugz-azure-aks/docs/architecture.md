@@ -7,7 +7,7 @@ Deploying this project creates **two** resource groups.
 One contains the infrastructure deployed by my Bicep templates, while the other is automatically created by Azure Kubernetes Service (AKS) to manage the underlying cluster infrastructure.
 
 Understanding what each resource does makes it much easier to understand how the entire platform fits together.
-
+![alt text](image-14.png) ![alt text](image-15.png)
 ---
 
 # 📦 Resource Group
