@@ -1,0 +1,19 @@
+# deploy-infra.ps1
+param(
+    [string]$projectName = "bugz",
+    [string]$environment = "dev",
+    [string]$location = "eastus",
+    [string]$aksSku = "Standard_DS2_v2",
+    [int]$nodeCount = 1,
+    [string]$resourceGroupName = "bugz-dev-rg"
+)
+
+$ErrorActionPreference = 'Stop'
+
+Write-Host "Creating resource group $resourceGroupName in $location"
+az group create -n $resourceGroupName -l $location | Out-Null
+
+Write-Host "Deploying Bicep templates to resource group $resourceGroupName"
+az deployment group create --resource-group $resourceGroupName --template-file playground-main/projects/bugz-azure-aks/infra/main.bicep --parameters projectName=$projectName environment=$environment location=$location aksSku=$aksSku nodeCount=$nodeCount
+
+Write-Host "Deployment submitted. Use az deployment group show to inspect outputs."

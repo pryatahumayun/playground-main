@@ -1,0 +1,31 @@
+# Visual Studio
+.vs/
+
+# Build outputs
+bin/
+obj/
+
+# User-specific files
+*.user
+*.suo
+
+# ASP.NET
+appsettings.*.json
+
+# Docker
+docker-compose.override.yml
+
+# Logs
+*.log
+
+# Node
+node_modules/
+
+# Terraform
+.terraform/
+
+# Azure CLI
+*.azure
+
+# GitHub Actions
+.github/workflows/*_local.yml
