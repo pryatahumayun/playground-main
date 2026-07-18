@@ -5,7 +5,7 @@
     "projectName": { "value": "bugz" },
     "environment": { "value": "dev" },
     "location": { "value": "eastus" },
-    "aksSku": { "value": "Standard_DS2_v2" },
+    "aksSku": { "value": "Standard_D2s_v7" },
     "nodeCount": { "value": 1 }
   }
 }

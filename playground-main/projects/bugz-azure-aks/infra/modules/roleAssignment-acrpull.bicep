@@ -1,13 +1,20 @@
-param acrResourceId string
+param acrName string
 param principalId string
 
-var acrPullRoleId = '7f951dda-4ed3-4680-a7ca-43fe172d538d'
+resource acr 'Microsoft.ContainerRegistry/registries@2023-07-01' existing = {
+  name: acrName
+}
 
-resource acrRole 'Microsoft.Authorization/roleAssignments@2020-10-01-preview' = {
-  name: guid(acrResourceId, principalId, acrPullRoleId)
-  scope: acrResourceId
+var acrPullRoleDefinitionId = subscriptionResourceId(
+  'Microsoft.Authorization/roleDefinitions',
+  '7f951dda-4ed3-4680-a7ca-43fe172d538d'
+)
+
+resource acrPullRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(acr.id, principalId, acrPullRoleDefinitionId)
+  scope: acr
   properties: {
-    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', acrPullRoleId)
+    roleDefinitionId: acrPullRoleDefinitionId
     principalId: principalId
     principalType: 'ServicePrincipal'
   }

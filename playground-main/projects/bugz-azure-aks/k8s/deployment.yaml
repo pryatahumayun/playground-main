@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: bugz-api
-          image: REPLACE_WITH_IMAGE
+          image: bugzdevacrcoqm5xd77sduc.azurecr.io/bugz-api:1.1.1
           ports:
             - containerPort: 8080
           env:

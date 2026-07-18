@@ -15,7 +15,7 @@ Quick commands (from repository root)
 - curl http://localhost:8080/health
 
 3) Deploy infra (example)
-- pwsh ./playground-main/projects/bugz-azure-aks/scripts/deploy-infra.ps1 -projectName bugz -environment dev -location eastus -aksSku Standard_DS2_v2 -nodeCount 1 -resourceGroupName bugz-dev-rg
+- pwsh ./playground-main/projects/bugz-azure-aks/scripts/deploy-infra.ps1 -projectName bugz -environment dev -location eastus -aksSku Standard_D2s_v7 -nodeCount 1 -resourceGroupName bugz-dev-rg
 
 4) Build & push image
 - pwsh ./playground-main/projects/bugz-azure-aks/scripts/build-and-push.ps1 -acrName <acrName> -imageTag v1

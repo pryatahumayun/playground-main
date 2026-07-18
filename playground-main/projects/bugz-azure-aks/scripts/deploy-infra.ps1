@@ -3,7 +3,7 @@ param(
     [string]$projectName = "bugz",
     [string]$environment = "dev",
     [string]$location = "eastus",
-    [string]$aksSku = "Standard_DS2_v2",
+    [string]$aksSku = "Standard_D2s_v7",
     [int]$nodeCount = 1,
     [string]$resourceGroupName = "bugz-dev-rg"
 )

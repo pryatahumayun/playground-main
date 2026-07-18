@@ -2,10 +2,12 @@ param clusterName string
 param location string = resourceGroup().location
 param subnetId string
 param workspaceId string
-param nodeVmSize string = 'Standard_DS2_v2'
+param nodeVmSize string = 'Standard_D2s_v7'
+
+@minValue(1)
 param nodeCount int = 1
 
-resource aks 'Microsoft.ContainerService/managedClusters@2023-08-01' = {
+resource aks 'Microsoft.ContainerService/managedClusters@2024-02-01' = {
   name: clusterName
   location: location
   identity: {
@@ -13,26 +15,30 @@ resource aks 'Microsoft.ContainerService/managedClusters@2023-08-01' = {
   }
   properties: {
     dnsPrefix: clusterName
+    enableRBAC: true
+
     agentPoolProfiles: [
       {
-        name: 'agentpool'
+        name: 'systempool'
         count: nodeCount
         vmSize: nodeVmSize
         osType: 'Linux'
+        osSKU: 'Ubuntu'
         mode: 'System'
-        vnetSubnetId: subnetId
+        type: 'VirtualMachineScaleSets'
+        vnetSubnetID: subnetId
       }
     ]
-    linuxProfile: {
-      adminUsername: 'azureuser'
-    }
-    enableRBAC: true
+
     networkProfile: {
       networkPlugin: 'azure'
+      networkPluginMode: 'overlay'
       loadBalancerSku: 'standard'
-      networkMode: 'transparent'
       outboundType: 'loadBalancer'
+      serviceCidr: '10.2.0.0/16'
+      dnsServiceIP: '10.2.0.10'
     }
+
     addonProfiles: {
       omsagent: {
         enabled: true
@@ -44,7 +50,6 @@ resource aks 'Microsoft.ContainerService/managedClusters@2023-08-01' = {
   }
 }
 
-// Output kubelet identity principal id for role assignment
 output clusterName string = aks.name
 output aksResourceGroup string = resourceGroup().name
-output kubeletPrincipalId string = aks.identityProfile.kubeletidentity.objectId
+output kubeletPrincipalId string = aks.properties.identityProfile.kubeletidentity.objectId

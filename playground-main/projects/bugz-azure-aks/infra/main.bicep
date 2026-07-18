@@ -1,13 +1,26 @@
 targetScope = 'resourceGroup'
 
+@description('Short project name used in Azure resource names.')
 param projectName string
+
+@description('Deployment environment, for example dev, test, or prod.')
 param environment string
-param location string
-param aksSku string = 'Standard_DS2_v2'
+
+@description('Azure region for all resources.')
+param location string = resourceGroup().location
+
+@description('AKS node VM size.')
+param aksSku string = 'Standard_D2s_v7'
+
+@minValue(1)
+@description('AKS system node count.')
 param nodeCount int = 1
 
 var namePrefix = toLower('${projectName}${environment}')
-var acrName = toLower('${namePrefix}acr${uniqueString(resourceGroup().id)}')
+var acrName = take(
+  toLower('${namePrefix}acr${uniqueString(subscription().id, resourceGroup().id)}'),
+  50
+)
 var aksClusterName = '${projectName}-${environment}-aks'
 
 module network 'modules/network.bicep' = {
@@ -36,11 +49,6 @@ module acr 'modules/acr.bicep' = {
   }
 }
 
-module managedIdentity 'modules/managedIdentity.bicep' = {
-  name: 'managedIdentity'
-  params: {}
-}
-
 module aks 'modules/aks.bicep' = {
   name: 'aks'
   params: {
@@ -56,7 +64,7 @@ module aks 'modules/aks.bicep' = {
 module acrRole 'modules/roleAssignment-acrpull.bicep' = {
   name: 'acrRole'
   params: {
-    acrResourceId: acr.outputs.acrId
+    acrName: acr.outputs.acrName
     principalId: aks.outputs.kubeletPrincipalId
   }
 }
@@ -68,6 +76,8 @@ output aksResourceGroup string = aks.outputs.aksResourceGroup
 output subnetId string = network.outputs.subnetId
 output logAnalyticsWorkspaceId string = loganalytics.outputs.workspaceId
 
-output kubeConfigCommand string = 'az aks get-credentials -g ' + resourceGroup().name + ' -n ' + aks.outputs.clusterName + ' --overwrite-existing'
-output kubectlServiceCommand string = 'kubectl get svc bugz-api -n bugz -o jsonpath="{.status.loadBalancer.ingress[0].ip}" || kubectl get svc bugz-api -n bugz -o jsonpath="{.status.loadBalancer.ingress[0].hostname}"'
-output applicationUrlHint string = 'Run the kubectl command above and prepend http:// (e.g. echo http://$(kubectl get svc bugz-api -n bugz -o jsonpath="{.status.loadBalancer.ingress[0].ip}"))'
+output kubeConfigCommand string = 'az aks get-credentials -g ${resourceGroup().name} -n ${aks.outputs.clusterName} --overwrite-existing'
+
+output kubectlServiceCommand string = 'kubectl get svc bugz-api -n bugz -o jsonpath="{.status.loadBalancer.ingress[0].ip}"'
+
+output applicationUrlHint string = 'After deployment, run the kubectl service command and open http://<external-ip>.'
