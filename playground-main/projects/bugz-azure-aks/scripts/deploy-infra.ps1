@@ -14,6 +14,6 @@ Write-Host "Creating resource group $resourceGroupName in $location"
 az group create -n $resourceGroupName -l $location | Out-Null
 
 Write-Host "Deploying Bicep templates to resource group $resourceGroupName"
-az deployment group create --resource-group $resourceGroupName --template-file playground-main/projects/bugz-azure-aks/infra/main.bicep --parameters projectName=$projectName environment=$environment location=$location aksSku=$aksSku nodeCount=$nodeCount
+az deployment group create --resource-group $resourceGroupName --parameters playground-main/projects/bugz-azure-aks/infra/main.bicepparam projectName=$projectName environment=$environment location=$location aksSku=$aksSku nodeCount=$nodeCount
 
 Write-Host "Deployment submitted. Use az deployment group show to inspect outputs."
