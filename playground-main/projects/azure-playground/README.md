@@ -10,7 +10,8 @@ This example now includes a fuller Azure architecture with:
 
 ## Structure
 
-- main.bicep: top-level deployment entry point
+- main.settings.bicep: top-level deployment entry point
+- main.bicepparam: Bicep-native parameter file
 - modules/networking: creates the VNet and subnets
 - modules/app: creates the App Service Plan and Web App
 - modules/database: creates the SQL server, database, and private endpoint
@@ -22,10 +23,10 @@ This example now includes a fuller Azure architecture with:
 az group create --name rg-azure-playground --location eastus
 az deployment group create \
   --resource-group rg-azure-playground \
-  --template-file main.bicep \
-  --parameters @main.parameters.json
+  --template-file main.settings.bicep \
+  --parameters main.bicepparam
 ```
 
 ## Notes
 
-Replace the placeholder object ID in main.parameters.json with your own Azure AD object ID before deployment.
+Replace the placeholder object ID in main.bicepparam with your own Azure AD object ID before deployment.

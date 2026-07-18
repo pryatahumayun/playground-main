@@ -31,7 +31,7 @@ resource storageAccount 'Microsoft.Storage/storageAccounts@2023-05-01' = {
   }
 }
 
-module networking './modules/networking/main.bicep' = {
+module networking './modules/networking/network.settings.bicep' = {
   name: 'networkingDeployment'
   params: {
     location: location
@@ -44,7 +44,7 @@ module networking './modules/networking/main.bicep' = {
   }
 }
 
-module security './modules/security/main.bicep' = {
+module security './modules/security/security.settings.bicep' = {
   name: 'securityDeployment'
   params: {
     location: location
@@ -53,7 +53,7 @@ module security './modules/security/main.bicep' = {
   }
 }
 
-module database './modules/database/main.bicep' = {
+module database './modules/database/database.settings.bicep' = {
   name: 'databaseDeployment'
   params: {
     location: location
@@ -65,7 +65,7 @@ module database './modules/database/main.bicep' = {
   }
 }
 
-module app './modules/app/main.bicep' = {
+module app './modules/app/app.settings.bicep' = {
   name: 'appDeployment'
   params: {
     location: location
