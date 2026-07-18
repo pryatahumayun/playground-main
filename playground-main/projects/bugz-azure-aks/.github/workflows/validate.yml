@@ -1,0 +1,36 @@
+name: Validation
+on:
+  push:
+    branches:
+      - feature/bugz-azure-aks-clean
+    paths:
+      - 'playground-main/projects/bugz-azure-aks/**'
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore and build
+        run: |
+          dotnet restore playground-main/projects/bugz-azure-aks/src/Bugz.Api
+          dotnet build --configuration Release playground-main/projects/bugz-azure-aks/src/Bugz.Api
+
+      - name: Build Docker image
+        run: |
+          docker build -t validation-bugz -f playground-main/projects/bugz-azure-aks/docker/Dockerfile playground-main/projects/bugz-azure-aks
+
+      - name: Install Azure CLI
+        run: |
+          curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+
+      - name: Validate Bicep build
+        run: |
+          az bicep version || az bicep install
+          az bicep build --file playground-main/projects/bugz-azure-aks/infra/main.bicep
