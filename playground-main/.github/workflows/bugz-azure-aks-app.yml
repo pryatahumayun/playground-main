@@ -1,0 +1,110 @@
+name: Bugz Azure AKS App
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'projects/bugz-azure-aks/src/**'
+      - 'projects/bugz-azure-aks/docker/**'
+      - 'projects/bugz-azure-aks/k8s/**'
+      - '.github/workflows/bugz-azure-aks-app.yml'
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: bugz-azure-aks-app-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PROJECT_PATH: projects/bugz-azure-aks
+  PROJECT_NAME: bugz
+  ENVIRONMENT: dev
+  LOCATION: eastus
+  RESOURCE_GROUP: bugz-dev-rg
+  IMAGE_REPOSITORY: bugz
+  K8S_NAMESPACE: bugz
+  K8S_DEPLOYMENT: bugz-api
+  K8S_CONTAINER: bugz-api
+
+jobs:
+  deploy-app:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Resolve infrastructure outputs
+        id: infra
+        run: |
+          INFRA_DEPLOYMENT=$(az deployment group list \
+            --resource-group "$RESOURCE_GROUP" \
+            --query "sort_by([?contains(name, 'bugz-infra-')], &properties.timestamp)[-1].name" \
+            -o tsv)
+          if [ -z "$INFRA_DEPLOYMENT" ]; then
+            echo "Unable to resolve the latest infra deployment in resource group $RESOURCE_GROUP." >&2
+            exit 1
+          fi
+          ACR_NAME=$(az deployment group show \
+            --resource-group "$RESOURCE_GROUP" \
+            --name "$INFRA_DEPLOYMENT" \
+            --query properties.outputs.acrName.value \
+            -o tsv)
+          ACR_LOGIN_SERVER=$(az acr show -n "$ACR_NAME" --query loginServer -o tsv)
+          echo "infra_deployment=$INFRA_DEPLOYMENT" >> "$GITHUB_OUTPUT"
+          echo "acr_name=$ACR_NAME" >> "$GITHUB_OUTPUT"
+          echo "acr_login_server=$ACR_LOGIN_SERVER" >> "$GITHUB_OUTPUT"
+          echo "aks_name=${PROJECT_NAME}-${ENVIRONMENT}-aks" >> "$GITHUB_OUTPUT"
+
+      - name: Build image
+        run: |
+          docker build \
+            -t "${{ steps.infra.outputs.acr_login_server }}/${IMAGE_REPOSITORY}:${GITHUB_SHA}" \
+            -f "$PROJECT_PATH/docker/Dockerfile" \
+            "$PROJECT_PATH"
+
+      - name: Log in to ACR
+        run: az acr login -n "${{ steps.infra.outputs.acr_name }}"
+
+      - name: Push image
+        run: |
+          docker push "${{ steps.infra.outputs.acr_login_server }}/${IMAGE_REPOSITORY}:${GITHUB_SHA}"
+
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v4
+
+      - name: Get AKS credentials
+        run: |
+          az aks get-credentials \
+            --resource-group "$RESOURCE_GROUP" \
+            --name "${{ steps.infra.outputs.aks_name }}" \
+            --overwrite-existing
+
+      - name: Apply manifests
+        run: |
+          kubectl apply -f "$PROJECT_PATH/k8s/namespace.yaml"
+          kubectl apply -f "$PROJECT_PATH/k8s/deployment.yaml"
+          kubectl apply -f "$PROJECT_PATH/k8s/service.yaml"
+
+      - name: Update deployment image
+        run: |
+          kubectl -n "$K8S_NAMESPACE" set image deployment/"$K8S_DEPLOYMENT" \
+            "$K8S_CONTAINER"="${{ steps.infra.outputs.acr_login_server }}/${IMAGE_REPOSITORY}:${GITHUB_SHA}"
+
+      - name: Wait for rollout
+        run: |
+          kubectl -n "$K8S_NAMESPACE" rollout status deployment/"$K8S_DEPLOYMENT" --timeout=180s
+
+      - name: Show service details
+        run: kubectl -n "$K8S_NAMESPACE" get svc bugz-api -o wide

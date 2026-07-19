@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PK the Presa on ECS</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            font-family: Inter, Arial, sans-serif;
+            color: #20232a;
+            background:
+                radial-gradient(circle at top left, #dcecff 0, transparent 38%),
+                linear-gradient(135deg, #f6f8fc, #edf3ff);
+        }
+
+        main {
+            width: min(1100px, calc(100% - 32px));
+            margin: 0 auto;
+            padding: 56px 0;
+        }
+
+        .hero {
+            display: grid;
+            grid-template-columns: 1.05fr 0.95fr;
+            overflow: hidden;
+            border: 1px solid rgba(38, 76, 140, 0.12);
+            border-radius: 28px;
+            background: rgba(255, 255, 255, 0.88);
+            box-shadow: 0 24px 70px rgba(31, 59, 107, 0.15);
+            backdrop-filter: blur(14px);
+        }
+
+        .content {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: 64px;
+        }
+
+        .eyebrow {
+            margin: 0 0 18px;
+            font-size: 0.78rem;
+            font-weight: 800;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            color: #3267b1;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: clamp(3.5rem, 8vw, 6.7rem);
+            line-height: 0.9;
+            letter-spacing: -0.07em;
+        }
+
+        .subtitle {
+            max-width: 520px;
+            margin: 26px 0 34px;
+            font-size: 1.12rem;
+            line-height: 1.7;
+            color: #5b6472;
+        }
+
+        .badges {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .badge {
+            padding: 10px 15px;
+            border-radius: 999px;
+            font-size: 0.88rem;
+            font-weight: 700;
+            background: #edf4ff;
+            color: #285a9f;
+            border: 1px solid #d7e7ff;
+        }
+
+        .photo {
+            min-height: 640px;
+            position: relative;
+        }
+
+        .photo img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            object-position: center;
+            display: block;
+        }
+
+        .photo::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(
+                90deg,
+                rgba(255,255,255,0.14),
+                transparent 35%
+            );
+            pointer-events: none;
+        }
+
+        .status {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            margin-top: 32px;
+            font-size: 0.92rem;
+            color: #657080;
+        }
+
+        .status-dot {
+            width: 9px;
+            height: 9px;
+            border-radius: 50%;
+            background: #2db56f;
+            box-shadow: 0 0 0 5px rgba(45, 181, 111, 0.12);
+        }
+
+        footer {
+            padding-top: 24px;
+            text-align: center;
+            color: #7a8492;
+            font-size: 0.86rem;
+        }
+
+        @media (max-width: 800px) {
+            main {
+                padding: 20px 0;
+            }
+
+            .hero {
+                grid-template-columns: 1fr;
+            }
+
+            .content {
+                padding: 42px 30px;
+            }
+
+            .photo {
+                min-height: 440px;
+                order: -1;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <main>
+        <section class="hero">
+            <div class="content">
+                <p class="eyebrow">Cloud-native Presa</p>
+
+                <h1>PK.</h1>
+
+                <p class="subtitle">
+                    PK the Presa, containerized for AWS-native deployment.
+                    Built with Docker, destined for ECR, ECS Fargate, and an Application Load Balancer.
+                </p>
+
+                <div class="badges">
+                    <span class="badge">AWS</span>
+                    <span class="badge">ECS Fargate</span>
+                    <span class="badge">Docker</span>
+                    <span class="badge">ASP.NET Core</span>
+                    <span class="badge">ALB</span>
+                </div>
+
+                <div class="status">
+                    <span class="status-dot"></span>
+                    <span>PK the Presa API is healthy and ready for treats.</span>
+                </div>
+            </div>
+
+            <div class="photo">
+                <img src="/images/PKThePresa.jpeg" alt="PK the Presa smiling in the back seat of a car" />
+            </div>
+        </section>
+
+        <footer>
+            Running somewhere inside an AWS ECS Fargate behind an Application Load Balancer.
+        </footer>
+    </main>
+</body>
+</html>
