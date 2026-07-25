@@ -1,5 +1,6 @@
 # PK - AWS ECS POC
-
+The final application screenshot here:
+![Running application](docs/image-28.png)
 This project is the AWS-native counterpart to `bugz-azure-aks`, now themed around PK the Presa.
 
 It reuses the same ASP.NET Core (.NET 8) application and container packaging approach where possible, but the eventual runtime target is AWS container services rather than Kubernetes. The intended hosting model is Amazon ECR for image storage, Amazon ECS Fargate for compute, an Application Load Balancer for ingress, and CloudWatch for logs and operational visibility.
@@ -21,11 +22,7 @@ For this initial setup, nothing is deployed. The goal is to establish a project 
 - Application Load Balancer
 - Amazon CloudWatch
 
-## Notes
 
-- The application code has only been lightly rebranded for PK the Presa and AWS-focused defaults.
-- The project still uses the existing `Bugz.Api` application name to maximize reuse and avoid unnecessary changes before infrastructure work begins.
-- No Terraform resources, CI/CD pipelines, or AWS deployment scripts have been created yet.
 
 ## Local build example
 
@@ -317,7 +314,7 @@ Monitoring includes:
 
 The application is accessed through the DNS name of the Application Load Balancer.
 
-Add the final application screenshot here:
+The final application screenshot here:
 ![Running application](docs/image-28.png)
 
 ## Deployment Flow
