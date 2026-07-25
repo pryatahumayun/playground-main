@@ -210,19 +210,6 @@ The ALB can exist before the ECS tasks are healthy. If the URL does not load:
 2. confirm the image push succeeded
 3. force a new ECS deployment again
 
-## Screenshots
 
-Deployment screenshots are stored in this folder and can be used to expand the walkthrough:
 
-- [image.png](/C:/Users/pryat/Downloads/playground-main/playground-main/projects/pk-aws-ecs/docs/image.png)
-- [image-1.png](/C:/Users/pryat/Downloads/playground-main/playground-main/projects/pk-aws-ecs/docs/image-1.png)
-- [image-2.png](/C:/Users/pryat/Downloads/playground-main/playground-main/projects/pk-aws-ecs/docs/image-2.png)
-- [image-3.png](/C:/Users/pryat/Downloads/playground-main/playground-main/projects/pk-aws-ecs/docs/image-3.png)
-- [image-4.png](/C:/Users/pryat/Downloads/playground-main/playground-main/projects/pk-aws-ecs/docs/image-4.png)
-- [image-5.png](/C:/Users/pryat/Downloads/playground-main/playground-main/projects/pk-aws-ecs/docs/image-5.png)
-- [image-6.png](/C:/Users/pryat/Downloads/playground-main/playground-main/projects/pk-aws-ecs/docs/image-6.png)
-- [image-7.png](/C:/Users/pryat/Downloads/playground-main/playground-main/projects/pk-aws-ecs/docs/image-7.png)
-- [image-8.png](/C:/Users/pryat/Downloads/playground-main/playground-main/projects/pk-aws-ecs/docs/image-8.png)
-- [image-9.png](/C:/Users/pryat/Downloads/playground-main/playground-main/projects/pk-aws-ecs/docs/image-9.png)
-- [image-10.png](/C:/Users/pryat/Downloads/playground-main/playground-main/projects/pk-aws-ecs/docs/image-10.png)
-- [image-11.png](/C:/Users/pryat/Downloads/playground-main/playground-main/projects/pk-aws-ecs/docs/image-11.png)
+
