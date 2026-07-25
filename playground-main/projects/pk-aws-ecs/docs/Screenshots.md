@@ -365,4 +365,4 @@ terraform destroy
 
 ## Author
 
-Priyata Humayun
+Pryata Humayun
