@@ -137,7 +137,7 @@ The API runs in an Amazon ECS cluster using AWS Fargate.
 
 Fargate provides serverless container compute, removing the need to manage EC2 container instances.
 
-![ECS Cluster](screenshots/ecs/ecs-cluster.png)
+![alt text](image-20.png)
 
 The cluster includes:
 
@@ -150,7 +150,7 @@ The cluster includes:
 
 The ECS service maintains the required number of running tasks.
 
-![alt text](image-20.png)
+![alt text](image-21.png)
 
 The service uses:
 
@@ -167,7 +167,7 @@ The ECS service is connected to the Application Load Balancer target group.
 
 The running containers listen on port `8080`.
 
-![alt text](image-21.png)
+![alt text](image-22.png)
 The load balancer sends traffic only to healthy tasks.
 
 ## Target Group
@@ -183,7 +183,7 @@ Configuration:
 | Port | 8080 |
 | Address type | IPv4 |
 
-![alt text](image-22.png)
+![alt text](image-23.png)
 
 ## Auto Scaling
 
@@ -197,7 +197,6 @@ Configuration:
 | Maximum tasks | 6 |
 | Target CPU utilization | 70% |
 
-![alt text](image-23.png)
 
 When average CPU utilization rises above the target, ECS can launch additional Fargate tasks. When demand falls, ECS can reduce the number of tasks while respecting the configured minimum.
 
