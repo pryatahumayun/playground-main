@@ -1,203 +1,189 @@
 # Amazon VPC (Virtual Private Cloud)
 
-## What I Know
+A VPC is your private network boundary inside AWS.
 
-A VPC is your own private network inside AWS.
-
-Think of it as the network boundary where most of your AWS resources live.
-
-When you create resources like:
+If you deploy:
 
 - EC2
 - ECS
+- EKS worker nodes
 - RDS
-- Elastic Load Balancers
+- load balancers
 
-they are typically deployed inside a VPC.
+they usually live inside a VPC.
 
-Some services, such as Lambda, can run without a VPC, but they can also be connected to one when private networking is required.
-
----
-
-# Similar Azure Concept
-
-The closest Azure equivalent is a **Virtual Network (VNET).**
-
-Both provide:
-
-- Private networking
-- IP address ranges
-- Subnets
-- Routing
-- Security
-- Connectivity to on-premises and other networks
-
-Coming from Azure, I found VPCs much easier to understand than expected because the concepts are very similar.
-
----
-
-# Components
-
-## CIDR Block
-
-Defines the IP address range available for the VPC.
-
-Example:
-
-```
-10.0.0.0/16
-```
-
-Choosing the correct CIDR block is important because every subnet inside the VPC will use addresses from this range.
-
----
-
-## Subnets
-
-Subnets divide a VPC into smaller networks.
-
-Common examples include:
-
-- Public Subnet
-- Private Subnet
-- Database Subnet
-
-Very similar to Azure Subnets.
-
-One thing AWS emphasizes more than Azure is whether a subnet is **public** or **private**.
-
----
-
-## Route Tables
-
-Route Tables determine where network traffic is sent.
-
-Examples include:
-
-- Local VPC traffic
-- Internet Gateway
-- NAT Gateway
-- VPN
-- Transit Gateway
-
-Very similar to Azure Route Tables.
-
----
-
-## Security Groups
-
-Security Groups act like virtual firewalls.
-
-They control:
-
-- Inbound traffic
-- Outbound traffic
+## Azure comparison
 
 Closest Azure equivalent:
 
-```
-Network Security Groups (NSGs)
-```
+- `VNet` in Azure
+- `VPC` in AWS
 
-### One Difference I Learned
+The concepts are very similar, but AWS makes networking feel especially central because many workload services are explicitly VPC-first.
 
-Azure commonly applies NSGs to subnets.
+## Core VPC components
 
-AWS Security Groups are attached directly to resources such as:
+### CIDR block
 
-- EC2
-- ECS
-- RDS
-- Load Balancers
-
-This makes Security Groups feel like firewall rules that travel with the resource instead of protecting an entire subnet.
-
----
-
-## Internet Gateway
-
-An Internet Gateway allows resources in public subnets to communicate with the Internet.
-
-Without an Internet Gateway, a subnet isn't truly public, even if resources have public IP addresses.
-
-Azure doesn't have one specific service called an Internet Gateway. Internet access is handled through routing, public IPs, load balancers, and other networking services.
-
----
-
-## NAT Gateway
-
-A NAT Gateway allows resources inside a **private subnet** to access the Internet without exposing them publicly.
+The VPC CIDR defines the address space for the network.
 
 Example:
 
-```
-Private EC2
-
-↓
-
-Downloads Windows Updates
-
-↓
-
-NAT Gateway
-
-↓
-
-Internet
+```text
+10.0.0.0/16
 ```
 
-This allows outbound traffic while preventing inbound connections from the Internet.
+Every subnet in the VPC draws its space from that range.
 
-Azure provides a very similar NAT Gateway service.
+### Subnets
 
----
+Subnets divide the VPC into smaller network segments.
 
-# What Lives Inside a VPC?
+Common patterns:
 
-Examples include:
+- public subnets for internet-facing load balancers
+- private subnets for application workloads
+- isolated/database subnets for stateful services
 
-- EC2 Instances
-- ECS Tasks
-- RDS Databases
-- Elastic Load Balancers
+### Route tables
 
-One thing I noticed while learning AWS is that networking feels much more central than it does in Azure.
+Route tables control where subnet traffic goes:
 
-People often start with:
+- local VPC traffic
+- internet gateway
+- NAT gateway
+- VPC peering
+- transit gateway
+- VPN or Direct Connect
 
-> "Which VPC should this resource live in?"
+### Security groups
 
-Whereas in Azure I usually think:
+Security groups are AWS's stateful resource firewalls.
 
-> "Which Resource Group am I deploying this into?"
+Unlike Azure NSGs, they are usually attached directly to resources such as:
 
----
+- EC2
+- ECS tasks
+- RDS
+- load balancers
 
-# Lessons Learned
+### Internet gateway
 
-AWS vs Azure
+An internet gateway allows traffic between public subnets and the internet.
 
-| Azure | AWS |
-|--------|-----|
-| Virtual Network (VNET) | Virtual Private Cloud (VPC) |
-| Subnet | Subnet |
-| Network Security Group | Security Group |
-| Route Table | Route Table |
-| VPN Gateway | VPN Gateway |
-| Private Endpoint | VPC Endpoint |
+Without a route to an internet gateway, a subnet is not truly public.
 
-Learning Azure networking first made AWS networking much easier to understand.
+### NAT gateway
 
----
+A NAT gateway lets private subnet resources reach the internet for outbound traffic without exposing them publicly for inbound access.
 
-# Things I Still Want to Learn
+This is common for:
 
-- VPC Peering
-- Transit Gateway
-- Network ACLs
-- VPC Endpoints
-- AWS PrivateLink
-- DNS inside a VPC
-- Multi-region networking
-- Hub and Spoke architectures in AWS
-- How large enterprises structure multiple VPCs
+- package updates
+- pulling container images
+- reaching public AWS services from private workloads
+
+## Example Terraform from this repo
+
+This repo already has a good VPC module example:
+
+- [main.tf](/C:/Users/pryat/Downloads/playground-main/playground-main/projects/aws-playground/infrastructure-modules/modules/networking/vpc/main.tf)
+
+That module creates:
+
+- one VPC
+- one public subnet per AZ
+- one private subnet per AZ
+- an internet gateway
+- one NAT gateway per AZ
+- public and private route tables
+
+### Create the VPC
+
+```hcl
+resource "aws_vpc" "this" {
+  cidr_block           = var.vpc_cidr
+  enable_dns_support   = true
+  enable_dns_hostnames = true
+
+  tags = merge(var.tags, { Name = var.vpc_name })
+}
+```
+
+### Create public subnets
+
+```hcl
+resource "aws_subnet" "public" {
+  for_each = { for idx, az in var.availability_zones : az => idx }
+
+  vpc_id                  = aws_vpc.this.id
+  cidr_block              = cidrsubnet(var.vpc_cidr, 4, each.value)
+  availability_zone       = each.key
+  map_public_ip_on_launch = true
+}
+```
+
+### Create private subnets
+
+```hcl
+resource "aws_subnet" "private" {
+  for_each = { for idx, az in var.availability_zones : az => idx }
+
+  vpc_id            = aws_vpc.this.id
+  cidr_block        = cidrsubnet(var.vpc_cidr, 4, each.value + length(var.availability_zones))
+  availability_zone = each.key
+}
+```
+
+### Route public traffic to the internet
+
+```hcl
+resource "aws_route" "public_internet" {
+  route_table_id         = aws_route_table.public.id
+  destination_cidr_block = "0.0.0.0/0"
+  gateway_id             = aws_internet_gateway.this.id
+}
+```
+
+### Route private traffic through NAT
+
+```hcl
+resource "aws_route" "private_nat" {
+  for_each = toset(var.availability_zones)
+
+  route_table_id         = aws_route_table.private[each.key].id
+  destination_cidr_block = "0.0.0.0/0"
+  nat_gateway_id         = aws_nat_gateway.this[each.key].id
+}
+```
+
+## Practical VPC patterns
+
+### Public ALB plus private app workloads
+
+Very common in ECS and EKS:
+
+- ALB in public subnets
+- app tasks or nodes in private subnets
+- NAT for outbound access
+
+### Private database tier
+
+- app in private subnets
+- RDS in separate private/database subnets
+- security groups only allow app-to-db traffic
+
+### Admin access
+
+If you need instance access, common AWS approaches include:
+
+- Systems Manager Session Manager
+- bastion host
+
+For many modern AWS environments, Session Manager is often cleaner than exposing a bastion publicly.
+
+## Good to remember
+
+- public vs private in AWS is mostly a routing decision
+- subnet design, route tables, and security groups work together
+- NAT gateways are useful but can become noticeable cost items

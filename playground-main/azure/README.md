@@ -1,25 +1,31 @@
 # Azure
 
-This folder contains Azure learning material, modules and architecture examples.
+This folder contains Azure learning notes, architecture patterns, and service-specific summaries.
 
-Subfolders:
-- az104
-- identity
-- networking
-- storage
-- compute
-- app-services
-- azure-functions
-- containers
-- service-bus
-- event-grid
-- cosmos-db
-- sql
-- monitoring
-- security
-- bicep
-- landing-zones
-- disaster-recovery
-- architecture
+## Main topics
 
-Add hands-on labs, ARM/Bicep examples, and architecture notes here.
+- `app-services`
+- `azure-functions`
+- `aks`
+- `acs`
+- `bicep`
+- `containers`
+- `cosmos-db`
+- `identity`
+- `networking`
+- `sql`
+- `storage`
+
+## Current focus areas
+
+- app hosting patterns
+- infrastructure as code with Bicep
+- container options on Azure
+- identity and networking foundations
+- data platform reliability, especially geo-redundancy
+
+## Good to remember
+
+- Azure service choices often overlap, so the real question is usually "which Azure service best fits this workload?"
+- reliability in Azure is often a mix of zones, paired regions, backups, and application failover behavior
+- for data services, geo-redundancy and failover are related but not identical concepts
