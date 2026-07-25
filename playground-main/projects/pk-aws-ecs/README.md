@@ -103,7 +103,7 @@ The VPC contains:
 - Separate public and private route tables
 - DNS resolution and DNS hostnames
 
-![alt text](image-19.png)
+![VPC layout](docs/image-19.png)
 
 ### Public Subnets
 
@@ -119,7 +119,7 @@ The tasks do not receive direct inbound traffic from the internet. Outbound conn
 
 Separate security groups are used for the Application Load Balancer and ECS tasks.
 
-![alt text](image-12.png)
+![Security groups overview](docs/image-12.png)
 
 ### Application Load Balancer Security Group
 
@@ -129,7 +129,7 @@ The ALB security group allows inbound HTTP traffic on port `80`.
 |---|---|---:|---|
 | Inbound | TCP | 80 | `0.0.0.0/0` |
 
-![alt text](image-14.png)
+![ALB security group](docs/image-14.png)
 
 ### ECS Task Security Group
 
@@ -139,7 +139,7 @@ The ECS task security group accepts traffic on port `8080` only from the Applica
 |---|---|---:|---|
 | Inbound | TCP | 8080 | ALB Security Group |
 
-![alt text](image-13.png)
+![ECS task security group](docs/image-13.png)
 
 This prevents the containers from being accessed directly from the internet.
 
@@ -149,9 +149,9 @@ NAT Gateways provide outbound internet connectivity for ECS tasks running in pri
 
 Elastic IP addresses are attached to the NAT Gateways to provide stable outbound addresses.
 
-![alt text](image-15.png) 
+![NAT gateway](docs/image-15.png) 
 
-![alt text](image-16.png)
+![Elastic IPs](docs/image-16.png)
 
 ## Application Load Balancer
 
@@ -159,13 +159,13 @@ An internet-facing Application Load Balancer receives inbound web traffic.
 
 The load balancer spans two Availability Zones and forwards requests to the ECS target group.
 
-![alt text](image-17.png)
+![Application Load Balancer](docs/image-17.png)
 
 ### Listener Configuration
 
 The listener accepts HTTP traffic on port `80` and forwards it to the target group.
 
-![alt text](image-18.png)
+![Listener configuration](docs/image-18.png)
 
 ## Amazon ECS Cluster
 
@@ -173,7 +173,7 @@ The API runs in an Amazon ECS cluster using AWS Fargate.
 
 Fargate provides serverless container compute, removing the need to manage EC2 container instances.
 
-![alt text](image-20.png)
+![ECS cluster](docs/image-20.png)
 
 The cluster includes:
 
@@ -186,7 +186,7 @@ The cluster includes:
 
 The ECS service maintains the required number of running tasks.
 
-![alt text](image-21.png)
+![ECS service](docs/image-21.png)
 
 The service uses:
 
@@ -203,7 +203,7 @@ The ECS service is connected to the Application Load Balancer target group.
 
 The running containers listen on port `8080`.
 
-![alt text](image-22.png)
+![Service health](docs/image-22.png)
 The load balancer sends traffic only to healthy tasks.
 
 ## Target Group
@@ -219,7 +219,7 @@ Configuration:
 | Port | 8080 |
 | Address type | IPv4 |
 
-![alt text](image-23.png)
+![Target group](docs/image-23.png)
 
 ## Auto Scaling
 
@@ -256,7 +256,7 @@ ECS Task Definition
 ECS Fargate Service
 ```
 
-![alt text](image-25.png)
+![ECR repository](docs/image-25.png)
 ## Terraform
 
 The AWS infrastructure is managed using Terraform.
@@ -309,16 +309,16 @@ Monitoring includes:
 - ECS service events
 - Load balancer target health
 
-![alt text](image-26.png)
+![CloudWatch metrics](docs/image-26.png)
 
-![alt text](image-27.png)
+![CloudWatch logs](docs/image-27.png)
 
 ## Running Application
 
 The application is accessed through the DNS name of the Application Load Balancer.
 
 Add the final application screenshot here:
-![alt text](image-28.png)
+![Running application](docs/image-28.png)
 
 ## Deployment Flow
 
