@@ -1,25 +1,26 @@
 # Application Architecture
 
-## What is Application Architecture?
+Application Architecture focuses on how software systems are structured and how they interact with each other.
 
-Application Architecture focuses on how software systems interact with one another.
-
-Questions it answers:
+## Questions it answers
 
 - What applications do we have?
-- What does each application do?
-- How do they communicate?
-- Which APIs are available?
-- What applications depend on each other?
+- What business capability does each one support?
+- How do they integrate?
+- Which systems are systems of record?
+- Which APIs, events, or batch flows exist?
+- Where are dependencies and coupling risks?
 
-Examples:
+## Common topics
 
-- REST APIs
-- Event-driven communication
-- Microservices
-- Service Bus
-- Event Grid
-- System integrations
+- APIs and contracts
+- event-driven integration
+- microservices vs modular monoliths
+- service boundaries
+- system context diagrams
+- dependency mapping
+- legacy modernization
 
+## Why it matters
 
-Good Application Architecture reduces coupling while making systems easier to maintain.
+Good application architecture reduces unnecessary coupling, makes ownership clearer, and helps teams evolve systems without breaking everything around them.

@@ -220,12 +220,7 @@ ECS Task Definition
 ECS Fargate Service
 ```
 
-Add the ECR screenshot here:
-
-```markdown
-![ECR Repository](screenshots/ecs/ecr-repository.png)
-```
-
+![alt text](image-25.png)
 ## Terraform
 
 The AWS infrastructure is managed using Terraform.
@@ -278,23 +273,16 @@ Monitoring includes:
 - ECS service events
 - Load balancer target health
 
-Add screenshots here:
+![alt text](image-26.png)
 
-```markdown
-![Container Insights](screenshots/monitoring/container-insights.png)
-
-![CloudWatch Logs](screenshots/monitoring/cloudwatch-logs.png)
-```
+![alt text](image-27.png)
 
 ## Running Application
 
 The application is accessed through the DNS name of the Application Load Balancer.
 
 Add the final application screenshot here:
-
-```markdown
-![Running API](screenshots/application/running-api.png)
-```
+![alt text](image-28.png)
 
 ## Deployment Flow
 
