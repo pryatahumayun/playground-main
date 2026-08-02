@@ -2,6 +2,34 @@
 
 This folder contains a small ASP.NET Core (.NET 8) minimal API deployed to AKS for a proof-of-concept.
 
+## Screenshot Highlights
+
+These are the quickest screenshots to understand the project before reading the full deployment and architecture docs.
+
+### Resource Group Overview
+
+This shows the main Azure resource group created by the Bicep deployment, including AKS, ACR, Log Analytics, networking, and monitoring resources.
+
+![Primary Azure resource group](./docs/image-14.png)
+
+### AKS Workloads
+
+This confirms the `bugz-api` deployment is running in the `bugz` namespace with healthy replicas inside the cluster.
+
+![AKS workloads](./docs/image-16.png)
+
+### Managed Resource Topology
+
+This visualizer view shows the Azure-managed infrastructure behind AKS, including the VM scale set, load balancer, public IPs, NSG, and managed identities.
+
+![Managed AKS resource topology](./docs/image-31.png)
+
+### Live Application
+
+This is the public Bugz application running through the Azure load balancer after the full container deployment flow completed successfully.
+
+![Live Bugz application](./docs/image-29.png)
+
 ## Architecture At A Glance
 
 This project packages a .NET 8 API into a Docker image, pushes that image into Azure Container Registry, and runs it on Azure Kubernetes Service. The infrastructure is provisioned with Bicep, the application is deployed with Kubernetes manifests, and public traffic reaches the API through an Azure load balancer created from a Kubernetes `LoadBalancer` service.
@@ -89,14 +117,10 @@ You can also delete the primary resource group from the Azure Portal, and Azure 
 
 ## Interview Talking Points
 
-- Why does AKS create a second resource group
-  - Azure uses it to manage the cluster infrastructure it owns, including the VM scale set, load balancer, public IPs, and supporting identities.
-- Why use ACR
-  - It gives the cluster a private, Azure-native image source with controlled access.
-- How does the app become public
-  - The Kubernetes service is exposed as type `LoadBalancer`, which causes Azure to provision a public IP and load balancer path to the service.
-- What would improve this in production
-  - HTTPS, ingress controller, autoscaling, tighter NSG and API server restrictions, secrets management, and CI/CD-driven deployments.
+- Why does AKS create a second resource group: Azure uses it to manage the cluster infrastructure it owns, including the VM scale set, load balancer, public IPs, and supporting identities.
+- Why use ACR: It gives the cluster a private, Azure-native image source with controlled access.
+- How does the app become public: The Kubernetes service is exposed as type `LoadBalancer`, which causes Azure to provision a public IP and load balancer path to the service.
+- What would improve this in production: HTTPS, ingress controller, autoscaling, tighter NSG and API server restrictions, secrets management, and CI/CD-driven deployments.
 
 Quick commands (from repository root)
 

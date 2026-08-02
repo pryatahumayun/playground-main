@@ -90,7 +90,36 @@ The managed resource group, `MC_rg-bugz-dev-eastus_bugz-dev-aks_eastus`, contain
 
 ![AKS managed resource group](./image-28.png)
 
-## 9. Load Balancer Frontend IPs
+## 9. Managed Resource Group Visualizer
+
+The Azure Resource Visualizer is one of the best screenshots for explaining the cluster topology.
+
+It shows how the Azure-managed pieces connect to one another rather than listing them individually:
+
+- node pool virtual machine scale set
+- AKS-managed network security group
+- public IP resources
+- Azure load balancer
+- managed identities tied to the cluster
+
+This is a strong diagram for interviews because it makes the hidden AKS infrastructure much more concrete.
+
+![Managed resource group visualizer](./image-31.png)
+
+## 10. Managed Identity Topology
+
+This tighter visualizer view makes the identity story easier to explain.
+
+Two managed identities are visible in the diagram:
+
+- `bugz-dev-aks-agentpool`
+- `omsagent-bugz-dev-aks`
+
+The most important concept is that AKS can use Azure-managed identity and RBAC to access other Azure services, such as pulling images from ACR with the `AcrPull` role, without storing static registry credentials in Kubernetes secrets.
+
+![Managed identity visualizer view](./image-30.png)
+
+## 11. Load Balancer Frontend IPs
 
 The frontend IP configuration page shows the public addresses assigned to the cluster load balancer.
 
@@ -98,7 +127,7 @@ One of the entries maps to the public application IP, `135.234.201.251`, which i
 
 ![Load balancer frontend IP configuration](./image-19.png)
 
-## 10. Load Balancer Backend Pools
+## 12. Load Balancer Backend Pools
 
 The backend pools view shows where the load balancer actually sends traffic.
 
@@ -106,7 +135,7 @@ This ties the public load balancer to the AKS node infrastructure by linking bac
 
 ![Load balancer backend pools](./image-20.png)
 
-## 11. Load Balancing Rules
+## 13. Load Balancing Rules
 
 The load balancing rules page shows the concrete listener rule that distributes traffic.
 
@@ -114,7 +143,7 @@ In this deployment, Azure created a rule for TCP port `80`, which is the path us
 
 ![Load balancer rules](./image-21.png)
 
-## 12. Network Security Group Rules
+## 14. Network Security Group Rules
 
 This network security group is attached to the AKS-managed node infrastructure.
 
@@ -128,7 +157,7 @@ This is a good screenshot for discussing how inbound traffic is constrained even
 
 ![AKS node pool network security group](./image-23.png)
 
-## 13. AKS Cluster Networking Summary
+## 15. AKS Cluster Networking Summary
 
 The AKS networking blade provides the higher-level view of how the cluster is configured.
 
@@ -142,7 +171,7 @@ This complements the subnet, NSG, and load balancer screenshots by showing the c
 
 ![AKS networking profile](./image-22.png)
 
-## 14. VM Scale Set Scaling
+## 16. VM Scale Set Scaling
 
 The scaling page shows the infrastructure-side capacity model for the node pool.
 
@@ -155,7 +184,7 @@ The node pool is configured for manual scale in this capture, with the instance 
 
 ![VM scale set scaling](./image-24.png)
 
-## 15. VM Size Selection
+## 17. VM Size Selection
 
 The size view shows the compute family and pricing options available to the node pool.
 
@@ -163,7 +192,7 @@ The current selected node size is visible as `Standard_D2s_v7`, which is a pract
 
 ![VM scale set size options](./image-25.png)
 
-## 16. Availability Configuration
+## 18. Availability Configuration
 
 The availability page documents the resiliency posture of the node pool.
 
@@ -171,7 +200,7 @@ This is a useful place to discuss availability zones, zone balancing, and how Az
 
 ![VM scale set availability settings](./image-26.png)
 
-## 17. Live Application
+## 19. Live Application
 
 The final screenshot closes the loop by showing the public application actually running through the Azure-managed load balancer.
 

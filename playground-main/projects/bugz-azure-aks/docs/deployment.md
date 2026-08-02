@@ -1,155 +1,111 @@
-# 🚀 Deploying Bugz to Azure Kubernetes Service
+# Deploying Bugz to Azure Kubernetes Service
 
 ## Overview
 
-This guide walks through deploying the Bugz API from scratch using Azure.
+This guide walks through the Bugz deployment from local source code to a running application on Azure Kubernetes Service.
 
-The goal wasn't just to get an application running. I wanted to understand the full deployment process, from creating the infrastructure to running a containerized application on Kubernetes.
+The goal of the project was not just to get an API online. It was to understand the full delivery path:
 
-By the end of this guide you'll have:
+- validate infrastructure as code
+- provision Azure resources with Bicep
+- build and push a container image
+- deploy the workload to AKS
+- verify the application through the public endpoint
 
-- An Azure subscription
-- Azure Cloud Shell configured
-- Azure CLI authenticated
-- Infrastructure deployed with Bicep
-- A Docker image published to Azure Container Registry (ACR)
-- An ASP.NET Core application running on Azure Kubernetes Service (AKS)
+For a portal-first walkthrough of the finished environment, see the [Azure screenshot gallery](./screenshots.md).
 
-For a portal-first walkthrough of the deployed environment, see the [Azure screenshot gallery](./screenshots.md).
+## Phase 1: Create or Select an Azure Subscription
 
----
+If you do not already have an Azure subscription, create one first in the Azure Portal. Once the subscription is active, you can deploy the Bugz infrastructure into it.
 
-# Phase 1: Create an Azure Subscription
+![Azure subscription](./image.png)
 
-If you don't already have an Azure subscription, start by creating one through the Azure Portal.
-
-Once your subscription is active, you'll be ready to start deploying resources.
-
-![Azure Subscription](image.png)
-
----
-
-# Phase 2: Open Azure Cloud Shell
+## Phase 2: Open Azure Cloud Shell
 
 From the Azure Portal:
 
-- Click the **Cloud Shell** icon
-- Select **Bash**
+- click the Cloud Shell icon
+- select `Bash`
 
-The first time Cloud Shell launches you'll be asked to configure storage.
+On first launch, Azure asks you to configure the shell environment. For this project, Cloud Shell was configured without a storage account. Cloud Shell is useful because Azure CLI is already available and authenticated in the browser session.
 
-For this project I selected:
+## Phase 3: Authenticate with Azure
 
-- **No Storage Account Required**
-- My Azure subscription
-
-Then click **Apply**.
-
-Cloud Shell comes with the Azure CLI already installed, so it's a quick way to start working without configuring your local machine.
-
----
-
-# Phase 3: Authenticate with Azure
-
-If you're working from your own terminal instead of Cloud Shell:
+If you are working from your own terminal instead of Cloud Shell, sign in with Azure CLI:
 
 ```bash
 az login
 ```
 
-A browser window will open asking you to sign in.
+After sign-in, choose the subscription that will host the deployment.
 
-After authentication, select the Azure subscription you want to use.
+## Phase 4: Verify the Active Subscription
 
----
-
-# Phase 4: Verify Your Subscription
-
-Before deploying anything, it's always worth checking you're connected to the correct subscription.
+Before deploying anything, confirm that Azure CLI is pointed at the correct subscription:
 
 ```bash
 az account show
 ```
 
-![Azure Account](image-1.png)
+These screenshots capture the account and subscription verification step:
 
-Verify:
+![Azure account](./image-1.png)
+![Azure subscription details](./image-2.png)
 
-![Subscription Details](image-2.png)
+This quick check helps avoid deploying resources into the wrong tenant or subscription.
 
-- Subscription Name
-- Subscription ID
-- Tenant
-- Logged in account
+## Phase 5: Clone the Repository
 
-It only takes a few seconds and can save you from deploying resources into the wrong subscription.
-
----
-
-# Phase 5: Clone the Repository
-
-Clone the repository and navigate to the project.
+Clone the repository and move into the Azure AKS project:
 
 ```bash
 git clone https://github.com/<username>/playground-main.git
-
 cd playground-main/projects/bugz-azure-aks
 ```
 
----
+## Phase 6: Validate the Bicep Template
 
-# Phase 6: Validate the Infrastructure
-
-Before deploying the infrastructure, I like to validate that the Bicep templates compile successfully.
+Before deploying infrastructure, validate that the Bicep template compiles successfully:
 
 ```bash
 az bicep build --file .\infra\main.bicep
 ```
 
-If this succeeds, the template is ready to deploy.
+If the build succeeds, the template is ready to use.
 
----
+## Phase 7: Preview the Deployment with What-If
 
-# Phase 7: Preview the Deployment
-
-One feature I really like in Azure is the **What-If** deployment.
-
-Instead of deploying immediately, Azure shows exactly what resources will be created or updated.
+Use Azure's `what-if` feature to preview the changes before creating resources:
 
 ```bash
 az deployment group what-if ...
 ```
 
-![What-If Deployment](image-8.png)
+This is a good safety step because it shows what Azure plans to create or update before the deployment runs.
 
-It's a nice sanity check before provisioning infrastructure.
+![What-if deployment](./image-8.png)
 
----
+## Phase 8: Deploy the Infrastructure
 
-# Phase 8: Deploy the Infrastructure
-
-Once everything looks good, deploy the environment.
+Once the preview looks correct, create the infrastructure:
 
 ```bash
 az deployment group create ...
 ```
 
-This project deploys:
+This deployment provisions the core Azure resources for the project:
 
-- Resource Group
-- Virtual Network
-- Azure Kubernetes Service
+- AKS
 - Azure Container Registry
-- Log Analytics Workspace
-- Managed Identity
+- virtual network and subnet
+- Log Analytics workspace
+- supporting Azure-managed identities and monitoring resources
 
-![Infrastructure Deployment](image-9.png)
+![Infrastructure deployment](./image-9.png)
 
----
+## Phase 9: Connect to the AKS Cluster
 
-# Phase 9: Connect to AKS
-
-Download the Kubernetes credentials for the cluster.
+After the infrastructure is ready, pull the Kubernetes credentials for the new cluster:
 
 ```bash
 az aks get-credentials \
@@ -157,104 +113,95 @@ az aks get-credentials \
   --name bugz-dev-aks
 ```
 
-Then verify the cluster is available.
+Verify that the node is available:
 
 ```bash
 kubectl get nodes
 ```
 
-![AKS Nodes](image-10.png)
+The `Ready` node confirms that the cluster is available for workload deployment.
 
-Seeing a **Ready** node is always a good sign.
+![AKS nodes](./image-10.png)
 
----
+## Phase 10: Build the Docker Image
 
-# Phase 10: Build the Docker Image
-
-Build the application into a Docker image.
+Build the application into a local Docker image:
 
 ```bash
 docker build -t bugz-api:local .
 ```
 
-![Docker Build](image-11.png)
+![Docker build](./image-11.png)
 
----
+## Phase 11: Test the Container Locally
 
-# Phase 11: Test Locally
-
-Before pushing anything to Azure, I like to make sure the container actually works.
-
-Run the container:
+Before pushing the image to Azure, run it locally and verify the endpoints:
 
 ```bash
 docker run --rm -p 8080:8080 bugz-api:local
 ```
-
-Then test a few endpoints.
 
 ```powershell
 Invoke-RestMethod http://localhost:8080/
 Invoke-RestMethod http://localhost:8080/health
 ```
 
-![Local Testing](image-4.png)
+If the container works locally, the Kubernetes deployment path is much less likely to fail for application-level reasons.
 
-If it works locally, there's a much better chance it'll work in Kubernetes.
+![Local testing](./image-4.png)
 
----
+## Phase 12: Push the Image to Azure Container Registry
 
-# Phase 12: Push the Image to Azure Container Registry
-
-Tag the local image.
+Tag the local image for ACR:
 
 ```bash
 docker tag bugz-api:local <acr-name>.azurecr.io/bugz-api:latest
 ```
 
-Push it to Azure Container Registry.
+Push it to the registry:
 
 ```bash
 docker push <acr-name>.azurecr.io/bugz-api:latest
 ```
 
-![Docker Push](image-12.png)
+At this point, AKS can pull the image from the private registry using Azure-managed identity and role assignment.
 
-Image uploaded.
+![Docker push to ACR](./image-12.png)
 
-Bless up. 🙏
+## Phase 13: Deploy the Kubernetes Manifests
 
----
-
-# Phase 13: Deploy to Kubernetes
-
-Deploy the Kubernetes manifests.
+Apply the manifests in the `k8s/` folder:
 
 ```bash
 kubectl apply -f k8s/
 ```
 
-Verify the deployment.
+Then verify that the deployment and service were created:
 
 ```bash
 kubectl get pods
-
 kubectl get svc
 ```
 
-Once the pods are running and the service has an external IP, the application is ready.
+Once the pods are healthy and the service has an external IP, the application is reachable through the Azure load balancer path.
 
----
+## Phase 14: Verify the Live Application
 
-# Phase 14: Verify the Application
+Open the public endpoint in a browser:
 
-Open the application in your browser.
-
-```
+```text
 http://135.234.201.251/
 ```
 
+If everything is working, the Bugz application is now running on Azure Kubernetes Service and exposed through the Azure-managed public endpoint.
 
-If everything went well, Bugz is now running on Azure Kubernetes Service.
+## What This Deployment Demonstrates
 
-Mission accomplished. 🐶
+This project shows a complete Azure container deployment path:
+
+- infrastructure as code with Bicep
+- container packaging with Docker
+- private image storage in ACR
+- workload orchestration with AKS
+- public exposure through an Azure load balancer
+- Azure-native identity and monitoring around the cluster

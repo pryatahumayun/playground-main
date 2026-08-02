@@ -1,212 +1,181 @@
 # Architecture
 
-# ☁️ Azure Resources
+This project is a small AKS deployment, but the architecture is still a real Azure platform stack. The application itself is simple. The infrastructure around it is where most of the cloud story lives: compute, networking, identity, container registry, observability, and Azure-managed cluster resources.
 
-Deploying this project creates **two** resource groups.
+## Azure Resource Model
 
-One contains the infrastructure deployed by my Bicep templates, while the other is automatically created by Azure Kubernetes Service (AKS) to manage the underlying cluster infrastructure.
+Deploying this project creates two resource groups:
 
-Understanding what each resource does makes it much easier to understand how the entire platform fits together.
-![alt text](image-14.png) ![alt text](image-15.png)
----
+- `rg-bugz-dev-eastus`
+- `MC_rg-bugz-dev-eastus_bugz-dev-aks_eastus`
 
-# 📦 Resource Group
+The first resource group is the one defined by the Bicep deployment. The second is created automatically by AKS to hold the infrastructure Azure manages for the cluster.
 
-## `rg-bugz-dev-eastus`
+## Primary Resource Group
 
-This is the primary resource group for the project.
+`rg-bugz-dev-eastus` contains the resources intentionally deployed for the project:
 
-Everything in this resource group is deployed through Infrastructure as Code using Bicep.
+- `bugz-dev-aks`
+- `bugz-dev-vnet`
+- `bugz-dev-law`
+- `bugzdevacrcoqm5xd77sduc`
+- `ContainerInsights (bugz-dev-law)`
 
-Resources include:
+This is the cleanest way to explain the project at a high level: the application platform, network, registry, and monitoring all start here.
 
-- Azure Kubernetes Service
-- Azure Container Registry
-- Virtual Network
-- Log Analytics Workspace
-- Container Insights
+![Primary resource group](./image-14.png)
 
-If I wanted to recreate this environment from scratch, these are the resources my Bicep templates would deploy.
+## Managed Resource Group
 
----
+`MC_rg-bugz-dev-eastus_bugz-dev-aks_eastus` is where Azure places the cluster infrastructure it owns and operates on your behalf.
 
-# 🤖 Managed Resource Group
+That includes resources such as:
 
-## `MC_rg-bugz-dev-eastus_bugz-dev-aks_eastus`
+- the node pool virtual machine scale set
+- the Azure load balancer
+- public IP addresses
+- the node pool network security group
+- managed identities used by the cluster
 
-When an AKS cluster is created, Azure automatically provisions a managed resource group.
+This separation is useful because it makes it clear which resources are part of your IaC boundary and which ones are part of the AKS service boundary.
 
-This resource group contains the infrastructure Azure needs to operate the Kubernetes cluster.
+![Managed resource group](./image-28.png)
 
-Resources include:
+## Resource Visualizer
 
-- Virtual Machine Scale Set
-- Azure Load Balancer
-- Public IP Addresses
-- Network Security Group
-- Managed Identities
+The Azure Resource Visualizer makes the relationships easier to explain than a flat resource list.
 
-Although these are Azure resources, they are managed through AKS rather than individually.
+In the full managed resource group diagram, you can see the VM scale set, load balancer, public IPs, network security group, and managed identities as connected pieces of the same cluster platform.
 
----
+![Managed resource group visualizer](./image-31.png)
 
-# ☸️ Azure Kubernetes Service (AKS)
+The tighter visualizer view is especially useful for interviews because it isolates the core runtime pieces: node pool VMSS, load balancer, public IPs, NSG, and the identities Azure attached to the cluster.
 
-## `bugz-dev-aks`
+![Managed resource group visualizer focused view](./image-30.png)
 
-Azure Kubernetes Service is the core of this project.
+## AKS
 
-It is responsible for orchestrating containers by:
+`bugz-dev-aks` is the Kubernetes control point for the project.
 
-- Scheduling workloads
-- Monitoring pod health
-- Restarting failed containers
-- Performing rolling deployments
-- Scaling applications
+Its responsibilities include:
 
-Azure manages the Kubernetes control plane, allowing me to focus on deploying applications rather than maintaining the cluster itself.
+- scheduling workloads
+- maintaining desired pod state
+- routing service traffic inside the cluster
+- exposing the application through a load balancer-backed Kubernetes service
+- integrating with Azure networking and identity
 
----
+The cluster is where the application deployment runs, but it is only one part of the overall Azure platform.
 
-# 📦 Azure Container Registry (ACR)
+## Azure Container Registry
 
-## `bugzdevacrcoqm5xd77sduc`
+`bugzdevacrcoqm5xd77sduc` stores the `bugz-api` image used by the cluster.
 
-Azure Container Registry stores the Docker images used by the Kubernetes cluster.
-
-After building the application locally, the image is pushed to ACR, where AKS can securely pull it during deployment.
+The deployment flow is:
 
 ```text
-Docker Build
-      │
-Docker Image
-      │
-Push
-      │
-Azure Container Registry
-      │
-Pull
-      │
-Azure Kubernetes Service
+Local build
+   |
+Docker image
+   |
+Push to ACR
+   |
+AKS pulls image
+   |
+Pods start in Kubernetes
 ```
 
-Think of it as a private Docker registry hosted inside Azure.
+This keeps the image supply path private and Azure-native.
 
----
+## Networking
 
-# 🌐 Virtual Network
+The project uses:
 
-## `bugz-dev-vnet`
+- `bugz-dev-vnet`
+- `aks-subnet`
+- an Azure-managed load balancer
+- a node pool network security group
+- public IP resources in the managed resource group
 
-The Virtual Network provides networking for the Kubernetes cluster.
-
-It allows Azure resources to communicate securely while controlling how traffic enters and leaves the environment.
-
-Even in a small project, networking plays an important role because every deployed resource needs a secure way to communicate.
-
----
-
-# 📊 Log Analytics Workspace
-
-## `bugz-dev-law`
-
-The Log Analytics Workspace collects telemetry from the environment.
-
-It stores:
-
-- Application logs
-- Kubernetes logs
-- Performance metrics
-- Diagnostic events
-
-These logs become invaluable when troubleshooting issues or monitoring application health.
-
----
-
-# 👀 Container Insights
-
-## `ContainerInsights (bugz-dev-law)`
-
-Container Insights builds on top of Log Analytics and provides monitoring specifically for AKS.
-
-It allows me to quickly monitor:
-
-- CPU usage
-- Memory usage
-- Node health
-- Pod health
-- Container restarts
-
-Rather than searching through raw logs, Container Insights provides a centralized view of the cluster's health.
-
----
-
-# ⚖️ Azure Load Balancer
-
-The Azure Load Balancer is created inside the managed resource group.
-
-Its job is to receive incoming traffic from the Internet and forward requests to the Kubernetes Service, which then routes traffic to one of the running application pods.
+The public request flow looks like this:
 
 ```text
-Internet
-    │
+Browser
+  |
+Azure Public IP
+  |
 Azure Load Balancer
-    │
+  |
 Kubernetes Service
-    │
-Pod 1
-Pod 2
+  |
+Bugz Pods
 ```
 
-Without the Load Balancer, the application would not be publicly accessible.
+The VNet and subnet provide the private address space for the cluster infrastructure, while the load balancer provides the public entry point.
 
----
+## Virtual Machine Scale Set
 
-# 🖥️ Virtual Machine Scale Set (VMSS)
+AKS uses a virtual machine scale set to host the worker nodes.
 
-Containers still need virtual machines to run on.
+That means Azure can:
 
-AKS creates a Virtual Machine Scale Set to host the Kubernetes worker nodes.
+- provision nodes automatically
+- replace unhealthy nodes
+- change capacity through node scaling
+- attach the node infrastructure to the cluster load balancer and NSG
 
-Azure manages these virtual machines automatically by:
+This is a useful distinction in interviews: Kubernetes schedules pods, but those pods still need actual compute underneath them.
 
-- Provisioning new nodes
-- Replacing unhealthy nodes
-- Scaling the cluster
-- Applying updates
+## Managed Identity
 
-This means I never need to manually manage the underlying virtual machines.
+Managed identity is one of the most important platform features in this project.
 
----
+In this deployment, Azure created managed identities for the cluster components rather than requiring registry credentials to be stored in Kubernetes manifests or application configuration.
 
-# 🔐 Managed Identity
+The visualizer screenshots show two identities clearly:
 
-AKS uses Managed Identity to securely authenticate with Azure services.
+- `bugz-dev-aks-agentpool`
+- `omsagent-bugz-dev-aks`
 
-For this project, the managed identity has the **AcrPull** role assigned, allowing the Kubernetes cluster to pull container images directly from Azure Container Registry.
+The key idea is:
 
-This removes the need to store usernames, passwords, or registry credentials within the application.
+- the AKS-related identity can be granted Azure RBAC permissions such as `AcrPull`
+- that permission allows the cluster to pull images from ACR securely
+- no registry username or password needs to be embedded in the app deployment
 
----
+This is a strong talking point because it shows secure service-to-service authentication using Azure-native identity instead of secrets.
 
-# 🏗️ Putting It All Together
+## Observability
 
-Each resource has a specific responsibility, but they work together as a single platform.
+Monitoring is built around:
+
+- `bugz-dev-law`
+- `ContainerInsights (bugz-dev-law)`
+
+These resources collect logs and metrics from the cluster and make troubleshooting easier by centralizing Kubernetes and infrastructure telemetry.
+
+## Putting It Together
+
+This deployment is best understood as a connected Azure platform:
 
 ```text
-                    Azure
-                      │
-        ┌─────────────┴─────────────┐
-        │                           │
- Azure Container Registry      Azure Kubernetes Service
-        │                           │
-        │                     Virtual Machine Scale Set
-        │                           │
-        └──────────────┬────────────┘
-                       │
-              Azure Load Balancer
-                       │
-                  Bugz Application
+                  Azure Resource Group
+                           |
+       ------------------------------------------------
+       |                 |               |            |
+      AKS               ACR            VNet      Log Analytics
+       |                 |               |            |
+       |                 |               |      Container Insights
+       |
+ Managed Resource Group
+       |
+  -------------------------------
+  |        |         |          |
+ VMSS     NSG   Load Balancer  Managed Identities
+                     |
+                 Public IP
+                     |
+                  Bugz App
 ```
 
-Building this project helped me understand that deploying an application to AKS involves much more than just Kubernetes. Networking, monitoring, identity, container storage, and compute all work together to create a production-ready environment.
+The main lesson from this project is that even a small AKS deployment is never just "a Kubernetes cluster." It is an identity-aware, networked, monitored container platform made up of both user-managed and Azure-managed resources.
