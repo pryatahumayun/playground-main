@@ -13,6 +13,7 @@ This folder contains Azure learning notes, architecture patterns, and service-sp
 - `cosmos-db`
 - `identity`
 - `networking`
+- `policies`
 - `sql`
 - `storage`
 
@@ -22,6 +23,7 @@ This folder contains Azure learning notes, architecture patterns, and service-sp
 - infrastructure as code with Bicep
 - container options on Azure
 - identity and networking foundations
+- governance with Azure Policy
 - data platform reliability, especially geo-redundancy
 
 ## Good to remember
