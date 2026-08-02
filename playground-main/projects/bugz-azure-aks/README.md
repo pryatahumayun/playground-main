@@ -2,6 +2,102 @@
 
 This folder contains a small ASP.NET Core (.NET 8) minimal API deployed to AKS for a proof-of-concept.
 
+## Architecture At A Glance
+
+This project packages a .NET 8 API into a Docker image, pushes that image into Azure Container Registry, and runs it on Azure Kubernetes Service. The infrastructure is provisioned with Bicep, the application is deployed with Kubernetes manifests, and public traffic reaches the API through an Azure load balancer created from a Kubernetes `LoadBalancer` service.
+
+## Deployment Flow
+
+1. Build the ASP.NET Core application and validate it locally.
+2. Build a Docker image from the project Dockerfile.
+3. Push the image to Azure Container Registry.
+4. Deploy Azure infrastructure with Bicep.
+5. Connect to the AKS cluster with `kubectl`.
+6. Apply the Kubernetes manifests into the `bugz` namespace.
+7. Reach the application through the public IP exposed by the Azure load balancer.
+
+## Why These Azure Resources Exist
+
+- `AKS` runs the Kubernetes control plane and worker node platform for the application.
+- `ACR` stores private container images so AKS can pull trusted builds.
+- `VNet` and `aks-subnet` provide the private network boundary for cluster infrastructure.
+- `Log Analytics` collects logs and metrics from the deployment.
+- `Container Insights` adds AKS-focused monitoring on top of Log Analytics.
+- the AKS managed resource group holds the load balancer, public IPs, VM scale set, and other resources Azure manages for the cluster.
+
+## Networking Path
+
+The public request flow for this project is:
+
+`Browser -> Azure Public IP -> Azure Load Balancer -> Kubernetes Service -> Bugz Pods`
+
+At the Azure layer, the load balancer is created automatically when the Kubernetes service is defined as type `LoadBalancer`. Inside the cluster, Kubernetes then forwards traffic from the service to the healthy `bugz-api` pods.
+
+## Scaling Notes
+
+There are two different scaling concepts in this project:
+
+- `pod scaling`: Kubernetes can run multiple replicas of the `bugz-api` deployment.
+- `node scaling`: Azure can add or remove worker nodes through the VM scale set behind AKS.
+
+Those are related but not the same. More pods improve app-level redundancy, while more nodes increase cluster capacity.
+
+## Security Notes
+
+- The application image is stored in a private Azure Container Registry.
+- AKS uses Azure-managed identity and role assignment for image pull access instead of embedding registry credentials in manifests.
+- The AKS-managed network security group limits inbound access and preserves Azure default allow and deny behavior.
+- The API is publicly reachable through the load balancer, so production hardening would typically add tighter ingress controls, TLS, and restricted API server access.
+
+## Cost Awareness
+
+Even a small AKS proof of concept can continue generating charges when left running. The main cost drivers are usually:
+
+- the AKS worker nodes
+- the public load balancer
+- public IP addresses
+- Log Analytics ingestion and retention
+- container registry storage
+
+For interview prep or demos, it is worth capturing screenshots and then tearing the environment down when it is no longer needed.
+
+## Documentation
+
+- [Deployment guide](./docs/deployment.md)
+- [Architecture overview](./docs/architecture.md)
+- [Screenshot gallery](./docs/screenshots.md)
+
+## Cleanup
+
+If everything for this deployment lives in the Bugz resource groups, the simplest cleanup path is deleting the application resource group and the AKS-managed resource group.
+
+Example Azure CLI commands:
+
+```bash
+az group delete --name rg-bugz-dev-eastus --yes --no-wait
+az group delete --name MC_rg-bugz-dev-eastus_bugz-dev-aks_eastus --yes --no-wait
+```
+
+You can also delete the primary resource group from the Azure Portal, and Azure will typically remove the managed AKS resource group as part of the cluster cleanup. It is still worth verifying both groups are gone afterward.
+
+## Lessons Learned
+
+- AKS deployments create more Azure resources than just the cluster object shown in the first deployment command.
+- Azure networking matters even for a small Kubernetes proof of concept because the load balancer, subnet, public IP, and NSG all affect reachability.
+- A private registry and managed identity make the container delivery path cleaner and safer than passing raw credentials around.
+- The Azure Portal is useful not just for management, but for explaining the architecture visually during interviews and project walkthroughs.
+
+## Interview Talking Points
+
+- Why does AKS create a second resource group
+  - Azure uses it to manage the cluster infrastructure it owns, including the VM scale set, load balancer, public IPs, and supporting identities.
+- Why use ACR
+  - It gives the cluster a private, Azure-native image source with controlled access.
+- How does the app become public
+  - The Kubernetes service is exposed as type `LoadBalancer`, which causes Azure to provision a public IP and load balancer path to the service.
+- What would improve this in production
+  - HTTPS, ingress controller, autoscaling, tighter NSG and API server restrictions, secrets management, and CI/CD-driven deployments.
+
 Quick commands (from repository root)
 
 1) Build & validate locally

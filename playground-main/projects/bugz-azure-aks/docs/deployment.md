@@ -15,6 +15,8 @@ By the end of this guide you'll have:
 - A Docker image published to Azure Container Registry (ACR)
 - An ASP.NET Core application running on Azure Kubernetes Service (AKS)
 
+For a portal-first walkthrough of the deployed environment, see the [Azure screenshot gallery](./screenshots.md).
+
 ---
 
 # Phase 1: Create an Azure Subscription
