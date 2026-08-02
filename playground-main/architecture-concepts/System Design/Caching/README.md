@@ -1,15 +1,72 @@
 # Caching
 
-Caching stores frequently requested data closer to the consumer to reduce latency and backend load.
+Caching stores frequently requested data closer to the consumer so responses are faster and backend systems do less work.
 
-## What To Know
+## What Caching Is Really About
 
-- common layers are browser, CDN, application, and database caching
-- cache invalidation is one of the hard parts
-- stale data is the main tradeoff
+Caching helps with:
 
-## Good Interview Points
+- lower latency
+- lower database load
+- better scale for read-heavy traffic
 
-- good for read-heavy workloads
-- can protect databases during spikes
-- TTL, eviction strategy, and consistency requirements matter
+## Common Cache Layers
+
+- browser cache
+- CDN cache
+- application cache
+- distributed cache like Redis
+- database query cache where applicable
+
+## Simple Flow
+
+```text
+Request
+  |
+  v
+Cache?
+ | \
+ |  \ miss
+ |   v
+hit  Database / Backend
+ |      |
+ v      v
+Response + Cache Fill
+```
+
+## Example: Product Catalog
+
+A product catalog is read far more often than it changes.
+
+Good candidate for caching:
+
+- product metadata
+- category pages
+- popular search results
+
+## Main Tradeoff
+
+Caching improves speed but risks stale data.
+
+That is why cache invalidation is such a big topic.
+
+## Common Cache Decisions
+
+- TTL length
+- invalidation strategy
+- eviction policy
+- cache key design
+- what data should never be cached
+
+## What Interviewers Like To Hear
+
+- `Caching is strongest for read-heavy workloads with tolerable staleness windows.`
+- `I would think about invalidation and consistency before celebrating the speed gain.`
+- `Cache hit rate and stale-data tolerance matter just as much as adding the cache itself.`
+
+## Quick Study Prompts
+
+- What kinds of workloads benefit most from caching
+- Why is cache invalidation difficult
+- What are common cache layers
+- When is stale data unacceptable
